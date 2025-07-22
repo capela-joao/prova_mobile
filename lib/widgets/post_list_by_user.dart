@@ -7,6 +7,7 @@ import '../models/post_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../utils/rate_map.dart';
 
 class PostListByUser extends StatefulWidget {
   final User user;
@@ -37,12 +38,8 @@ class _PostListByUserState extends State<PostListByUser> {
     _fetchPosts();
   }
 
-  int _parseRate(dynamic rate) {
-    if (rate is int) return rate;
-    if (rate is String) {
-      return int.tryParse(rate) ?? 1;
-    }
-    return 1;
+  double _parseRateValue(dynamic rate) {
+    return RateMapping.getRateValue(rate);
   }
 
   Future<void> _fetchPosts() async {
@@ -104,7 +101,7 @@ class _PostListByUserState extends State<PostListByUser> {
     String title,
     String content,
     String? imageUrl,
-    int rate,
+    double rate,
   ) async {
     try {
       final editPostData = EditPostData(
@@ -289,9 +286,8 @@ class _PostListByUserState extends State<PostListByUser> {
                           ),
                         ),
                       const SizedBox(height: 8),
-
                       Text(
-                        'Avaliação: ${post['rate']} / 5',
+                        'Avaliação: ${_parseRateValue(post['rate']).toStringAsFixed(1)} / 5',
                         style: const TextStyle(color: Colors.white),
                       ),
                     ],
@@ -305,7 +301,8 @@ class _PostListByUserState extends State<PostListByUser> {
   void _showEditModal(Map<String, dynamic> post) {
     final titleController = TextEditingController(text: post['title']);
     final contentController = TextEditingController(text: post['content']);
-    int selectedRate = _parseRate(post['rate']);
+    double rateValue = _parseRateValue(post['rate']);
+    int selectedRate = RateMapping.getStarsFromValue(rateValue);
 
     _customImage = null;
     _uploadedImageUrl = post['imageURL'];
@@ -487,10 +484,10 @@ class _PostListByUserState extends State<PostListByUser> {
                                           ),
                                         ),
                                         child: const Text(
-                                          '✓ Imagem carregada',
+                                          'Imagem carregada',
                                           style: TextStyle(
                                             color: Colors.green,
-                                            fontSize: 12,
+                                            fontSize: 10,
                                           ),
                                         ),
                                       ),
@@ -540,7 +537,7 @@ class _PostListByUserState extends State<PostListByUser> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '$selectedRate / 5',
+                                      '$selectedRate / 5.0',
                                       style: const TextStyle(
                                         color: Colors.white,
                                       ),
@@ -571,6 +568,10 @@ class _PostListByUserState extends State<PostListByUser> {
                             onPressed: _isUploadingImage
                                 ? null
                                 : () {
+                                    double finalRate =
+                                        RateMapping.getValueFromStars(
+                                          selectedRate,
+                                        );
                                     _editPost(
                                       post['id'],
                                       titleController.text,
@@ -578,7 +579,7 @@ class _PostListByUserState extends State<PostListByUser> {
                                       _uploadedImageUrl?.isEmpty == true
                                           ? null
                                           : _uploadedImageUrl,
-                                      selectedRate,
+                                      finalRate,
                                     );
                                     Navigator.of(context).pop();
                                   },

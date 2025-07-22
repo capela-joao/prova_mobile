@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../services/game_service.dart';
 import '../models/game_model.dart';
@@ -28,6 +26,7 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
   int? _selectedGameId;
   final ImagePicker _picker = ImagePicker();
   Timer? _debounceTimer;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -96,25 +95,38 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
   }
 
   Future<void> _toggleFavoriteGame() async {
+    if (_isSubmitting) return;
+
     if (_selectedGameId == null) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
       final favorite = await _favoriteGameService.addFavoriteGame(
         _selectedGameId!,
       );
 
-      debugPrint('Favorito adicionado: ${jsonEncode(favorite)}');
+      if (mounted) {
+        setState(() {
+          _favoriteGamesIds.add(_selectedGameId!);
+          _isSubmitting = false;
+        });
 
-      setState(() {
-        _favoriteGamesIds.add(_selectedGameId!);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Jogo adicionado aos favoritos')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Jogo adicionado aos favoritos')),
+        );
+      }
     } catch (e) {
-      debugPrint('Erro ao adicionar favorito: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao atualizar favoritos: $e')),
-      );
+      setState(() {
+        _isSubmitting = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar favoritos: $e')),
+        );
+      }
     }
   }
 
@@ -233,13 +245,30 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: ElevatedButton(
-        onPressed: _toggleFavoriteGame,
+        onPressed: _isSubmitting ? null : _toggleFavoriteGame,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 45),
         ),
-        child: const Text('Adicionar aos Favoritos'),
+        child: _isSubmitting
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text('Adicionando...'),
+                ],
+              )
+            : Text('Adicionar aos Favoritos'),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../services/comment_like_service.dart';
 import '../models/comment_model.dart';
 import '../models/like_model.dart';
+import '../utils/rate_map.dart';
 
 class PostList extends StatefulWidget {
   final String token;
@@ -455,7 +456,7 @@ class _PostListState extends State<PostList> {
                   ),
                 const SizedBox(height: 8),
                 Text(
-                  'Avaliação: ${post['rate'] ?? 0} / 5',
+                  'Avaliação: ${RateMapping.getRateValue(post['rate']).toStringAsFixed(1)} / 5.0',
                   style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 12),

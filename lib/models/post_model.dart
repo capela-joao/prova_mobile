@@ -31,7 +31,7 @@ class EditPostData {
   final String title;
   final String content;
   final String imageURL;
-  final int rate;
+  final double rate;
 
   EditPostData({
     required this.title,
