@@ -16,12 +16,32 @@ class FavoriteGameService {
         body: jsonEncode({'gameId': gameId}),
       );
 
-      print('Status: ${response.statusCode}');
-      print('Body: "${response.body}"');
-
       if (response.statusCode == 200) {
         if (response.body.isNotEmpty) {
-          return jsonDecode(response.body);
+          return jsonDecode(utf8.decode(response.bodyBytes));
+        } else {
+          print('Jogo favorito adicionado com sucesso');
+          return {'success': true, 'message': 'Jogo adicionado aos favoritos'};
+        }
+      } else {
+        throw Exception('Erro ao favoritar o jogo: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Erro ao adicionar favorito: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteFavoriteGame(int gameId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$apiUrl/favoriteGame?gameId=$gameId'),
+        headers: {'Authorization': token, 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (response.body.isNotEmpty) {
+          return jsonDecode(utf8.decode(response.bodyBytes));
         } else {
           print('Jogo favorito adicionado com sucesso');
           return {'success': true, 'message': 'Jogo adicionado aos favoritos'};
@@ -45,7 +65,7 @@ class FavoriteGameService {
       return [];
     } else if (response.statusCode == 200) {
       try {
-        return jsonDecode(response.body) as List<dynamic>;
+        return jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
       } catch (e) {
         throw Exception('Erro ao tentar decodificar a resposta: $e');
       }

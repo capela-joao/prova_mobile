@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../widgets/error_message.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -44,13 +45,22 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorMessageHandler.getFriendlyMessage(
+          e.toString(),
+          context: 'register',
+        );
       });
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  void _clearError() {
+    setState(() {
+      _errorMessage = null;
+    });
   }
 
   InputDecoration _inputDecoration(String label) {
@@ -100,27 +110,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 32),
 
-                if (_errorMessage != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                ErrorMessageWidget(
+                  errorMessage: _errorMessage,
+                  onDismiss: _clearError,
+                ),
 
                 Form(
                   key: _formKey,
@@ -150,7 +143,11 @@ class _RegisterPageState extends State<RegisterPage> {
                         validator: (value) {
                           if (value == null || value.isEmpty)
                             return 'Obrigatório';
-                          if (!value.contains('@')) return 'E-mail inválido';
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
+                            return 'Digite um e-mail válido';
+                          }
                           return null;
                         },
                       ),

@@ -4,9 +4,7 @@ import 'pages/register_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/home_page.dart';
 import 'pages/favorite_games_page.dart';
-import 'models/user_model.dart';
-import 'models/new_post_args.dart';
-import 'classes/app_routes.dart';
+import 'pages/notification_page.dart';
 import 'services/session_service.dart';
 import 'pages/logout_page.dart';
 
@@ -112,6 +110,35 @@ class MyApp extends StatelessWidget {
                       );
                     }
                     return FavoriteGamesPage(token: tokenSnap.data!);
+                  },
+                );
+              },
+            ),
+          );
+        }
+
+        if (settings.name == '/notification') {
+          return MaterialPageRoute(
+            builder: (_) => FutureBuilder(
+              future: SessionService().getUser(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                return FutureBuilder(
+                  future: SessionService().getToken(),
+                  builder: (context, tokenSnap) {
+                    if (!tokenSnap.hasData) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return NotificationsPage(
+                      user: snapshot.data!,
+                      token: tokenSnap.data!,
+                    );
                   },
                 );
               },

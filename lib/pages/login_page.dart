@@ -4,6 +4,7 @@ import '../models/auth_response.dart';
 import 'register_page.dart';
 import '../models/new_post_args.dart';
 import '../services/session_service.dart';
+import '../widgets/error_message.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -47,7 +48,10 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorMessageHandler.getFriendlyMessage(
+          e.toString(),
+          context: 'login',
+        );
       });
     } finally {
       setState(() {
@@ -79,6 +83,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  void _clearError() {
+    setState(() {
+      _errorMessage = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,27 +113,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 32),
 
-                if (_errorMessage != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                ErrorMessageWidget(
+                  errorMessage: _errorMessage,
+                  onDismiss: _clearError,
+                ),
                 Form(
                   key: _formKey,
                   child: Column(
@@ -135,7 +128,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         decoration: _inputDecoration('E-mail'),
                         keyboardType: TextInputType.emailAddress,
-                        onChanged: (value) => _email = value.trim(),
+                        onChanged: (value) {
+                          _email = value.trim();
+                          if (_errorMessage != null) {
+                            _clearError();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Digite seu e-mail';
@@ -154,7 +152,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         decoration: _inputDecoration('Senha'),
                         obscureText: true,
-                        onChanged: (value) => _password = value.trim(),
+                        onChanged: (value) {
+                          _password = value.trim();
+                          if (_errorMessage != null) {
+                            _clearError();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Digite sua senha';

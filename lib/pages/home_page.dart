@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quest_board_mobile/pages/favorite_games_page.dart';
+import 'package:quest_board_mobile/pages/notification_page.dart';
+import '../widgets/notification_badge.dart';
 import '../models/user_model.dart';
 import '../services/game_service.dart';
 import '../models/post_model.dart';
@@ -10,6 +12,9 @@ import '../widgets/post_list.dart';
 import '../classes/app_routes.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -35,55 +40,110 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = false;
   File? _customImage;
   final ImagePicker _picker = ImagePicker();
+  Timer? _debounceTimer;
+
+  bool _isSubmitting = false;
+  bool _isUploadingImage = false;
+  String? _uploadedImageUrl;
+
+  static const String CLOUDINARY_CLOUD_NAME = 'ddymlahvr';
+  static const String CLOUDINARY_UPLOAD_PRESET = 'questboard_profiles';
 
   @override
   void dispose() {
     _searchController.dispose();
     _titleController.dispose();
     _reviewController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
+    if (_isUploadingImage) return;
+
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
     );
 
     if (pickedFile != null) {
       setState(() {
         _customImage = File(pickedFile.path);
+        _uploadedImageUrl = null;
       });
+
+      await _uploadImageToCloudinary();
     }
   }
 
-  Future<void> _searchGames(String query) async {
-    if (query.isEmpty) {
+  Future<void> _uploadImageToCloudinary() async {
+    if (_customImage == null) return;
+
+    setState(() {
+      _isUploadingImage = true;
+    });
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+          'https://api.cloudinary.com/v1_1/$CLOUDINARY_CLOUD_NAME/image/upload',
+        ),
+      );
+
+      request.fields['upload_preset'] = CLOUDINARY_UPLOAD_PRESET;
+
+      final multipartFile = await http.MultipartFile.fromPath(
+        'file',
+        _customImage!.path,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        setState(() {
+          _uploadedImageUrl = jsonResponse['secure_url'];
+          _isUploadingImage = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Imagem enviada com sucesso!')),
+          );
+        }
+      } else {
+        final errorResponse = json.decode(response.body);
+        final errorMessage =
+            errorResponse['error']?['message'] ?? 'Erro ao fazer upload';
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
       setState(() {
-        _games = [];
+        _isUploadingImage = false;
       });
-      return;
-    }
 
-    if (widget.token == null) {
-      print('ERRO: Token é null!');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro: Token não encontrado. Faça login novamente.'),
-        ),
-      );
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro no upload: $e')));
+      }
     }
+  }
 
-    if (widget.token.isEmpty) {
-      print('ERRO: Token está vazio!');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro: Token inválido. Faça login novamente.'),
-        ),
-      );
-      return;
-    }
+  void _searchGamesWithDebounce(String query) {
+    _debounceTimer?.cancel();
 
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _searchGames(query);
+    });
+  }
+
+  Future<void> _searchGames(String query) async {
     if (query.isEmpty) {
       setState(() {
         _games = [];
@@ -124,12 +184,13 @@ class _HomePageState extends State<HomePage> {
       _selectedGameId = game.id;
       _isGameSelected = true;
 
-      // Limpar a lista de jogos para fechar o dropdown
       _games = [];
     });
   }
 
   Future<void> _submitPost() async {
+    if (_isSubmitting) return;
+
     if (!_isGameSelected ||
         _titleController.text.isEmpty ||
         _reviewController.text.isEmpty ||
@@ -140,17 +201,21 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    setState(() {
+      _isSubmitting = true;
+    });
+
     final postData = PostData(
       authorId: widget.user.id,
       gameId: _selectedGameId!,
       title: _titleController.text,
       content: _reviewController.text,
-      imageURL: _customImage?.path ?? '',
+      imageURL: _uploadedImageUrl ?? '',
       rate: _rating,
     );
 
     try {
-      final response = await PostService().createPost(postData, widget.token);
+      await PostService().createPost(postData, widget.token);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,9 +232,15 @@ class _HomePageState extends State<HomePage> {
           _reviewController.clear();
           _rating = 0;
           _customImage = null;
+          _uploadedImageUrl = null;
+          _isSubmitting = false;
         });
       }
     } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -187,6 +258,14 @@ class _HomePageState extends State<HomePage> {
       context,
       AppRoutes.favoritegames,
       arguments: FavoriteGamesPage(token: widget.token),
+    );
+  }
+
+  void _goToNotificationsPage() {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.notification,
+      arguments: NotificationsPage(user: widget.user, token: widget.token),
     );
   }
 
@@ -256,10 +335,40 @@ class _HomePageState extends State<HomePage> {
             _buildDrawerItem(Icons.home, 'Home', _goToHome),
             _buildDrawerItem(Icons.person, 'Profile', _goToProfile),
             _buildDrawerItem(Icons.star, 'Jogos Favoritos', _goToFavoriteGames),
+            _buildNotificationDrawerItem(),
             _buildDrawerItem(Icons.logout, 'Sair', _logout),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNotificationDrawerItem() {
+    return ListTile(
+      leading: SizedBox(
+        width: 24,
+        height: 24,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.notifications, color: Colors.white, size: 24),
+            NotificationBadge(
+              userId: widget.user.id.toString(),
+              token: widget.token,
+              showOnlyBadge: true,
+            ),
+          ],
+        ),
+      ),
+      title: const Text('Notificações', style: TextStyle(color: Colors.white)),
+      onTap: () {
+        _goToNotificationsPage();
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+      },
     );
   }
 
@@ -333,7 +442,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         onChanged: (value) {
-          _searchGames(value);
+          _searchGamesWithDebounce(value);
         },
       ),
     );
@@ -468,7 +577,7 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: PostList(token: widget.token),
+              child: PostList(token: widget.token, userId: widget.user.id),
             ),
           ),
         ],
@@ -570,9 +679,23 @@ class _HomePageState extends State<HomePage> {
                           Row(
                             children: [
                               ElevatedButton.icon(
-                                onPressed: _pickImage,
-                                icon: const Icon(Icons.image),
-                                label: const Text('Selecionar'),
+                                onPressed: _isUploadingImage
+                                    ? null
+                                    : _pickImage,
+                                icon: _isUploadingImage
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.image),
+                                label: Text(
+                                  _isUploadingImage
+                                      ? 'Enviando...'
+                                      : 'Selecionar',
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blueGrey,
                                   foregroundColor: Colors.white,
@@ -587,6 +710,24 @@ class _HomePageState extends State<HomePage> {
                                     width: 60,
                                     height: 60,
                                     fit: BoxFit.cover,
+                                  ),
+                                ),
+                              if (_uploadedImageUrl != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    '✓ Enviado',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -655,14 +796,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: _submitPost,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00c6ff),
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Publicar'),
-                          ),
+                          _buildPublishButton(),
                         ],
                       ),
                     ],
@@ -673,6 +807,33 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPublishButton() {
+    return ElevatedButton(
+      onPressed: _isSubmitting ? null : _submitPost,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00c6ff),
+        foregroundColor: Colors.white,
+      ),
+      child: _isSubmitting
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text('Publicando...'),
+              ],
+            )
+          : Text('Publicar'),
     );
   }
 }

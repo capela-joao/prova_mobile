@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/favorite_games_service.dart';
 import '../models/game_model.dart';
@@ -97,6 +96,55 @@ class _FavoriteGameListState extends State<FavoriteGameList> {
     } catch (e) {
       print("Erro ao buscar detalhes do jogo $gameId: $e");
     }
+  }
+
+  Future<void> _deleteFavoriteGame(int gameId) async {
+    try {
+      await _favoriteGameService.deleteFavoriteGame(gameId);
+
+      setState(() {
+        _favoriteGames.removeWhere((game) => game['gameId'] == gameId);
+        _gameDetails.remove(gameId.toString());
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Jogo removido dos favoritos com sucesso!"),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erro ao remover jogo dos favoritos: $e")),
+      );
+    }
+  }
+
+  void _showOptionsMenu(Map<String, dynamic> game) {
+    final gameId = game['gameId'];
+    if (gameId == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2b2f33),
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.favorite_border, color: Colors.red),
+              title: const Text(
+                'Remover dos Favoritos',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteFavoriteGame(gameId);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -212,6 +260,16 @@ class _FavoriteGameListState extends State<FavoriteGameList> {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white70,
+                        ),
+                        onPressed: () {
+                          debugPrint("Botão de opções pressionado!");
+                          _showOptionsMenu(game);
+                        },
                       ),
                     ],
                   ),

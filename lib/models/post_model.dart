@@ -26,3 +26,26 @@ class PostData {
     };
   }
 }
+
+class EditPostData {
+  final String title;
+  final String content;
+  final String imageURL;
+  final int rate;
+
+  EditPostData({
+    required this.title,
+    required this.content,
+    required this.imageURL,
+    required this.rate,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'content': content,
+      'imageURL': imageURL,
+      'rate': rate,
+    };
+  }
+}

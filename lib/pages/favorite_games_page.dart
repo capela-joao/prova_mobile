@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../services/game_service.dart';
@@ -26,11 +27,21 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
   String? _selectedGameImage;
   int? _selectedGameId;
   final ImagePicker _picker = ImagePicker();
+  Timer? _debounceTimer;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _searchGamesWithDebounce(String query) {
+    _debounceTimer?.cancel();
+
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _searchGames(query);
+    });
   }
 
   Future<void> _searchGames(String query) async {
@@ -152,7 +163,7 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
           ),
         ),
         onChanged: (value) {
-          _searchGames(value);
+          _searchGamesWithDebounce(value);
         },
       ),
     );
@@ -228,11 +239,7 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 45),
         ),
-        child: Text(
-          _favoriteGamesIds.contains(_selectedGameId)
-              ? 'Remover dos Favoritos'
-              : 'Adicionar aos Favoritos',
-        ),
+        child: const Text('Adicionar aos Favoritos'),
       ),
     );
   }

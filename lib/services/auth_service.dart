@@ -24,12 +24,9 @@ class AuthService {
       }),
     );
 
-    print('Status: ${response.statusCode}');
-    print('Body: "${response.body}"');
-
     if (response.statusCode == 200 || response.statusCode == 201) {
       if (response.body.isNotEmpty) {
-        return User.fromJson(jsonDecode(response.body));
+        return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
       } else {
         return User(
           id: "",
@@ -61,12 +58,8 @@ class AuthService {
       }),
     );
 
-    print('Status: ${response.statusCode}');
-    print('Body: "${response.body}"');
-
     if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       return AuthResponse.fromJson(decoded);
     } else {
       throw Exception(_handleError(response));
@@ -74,7 +67,7 @@ class AuthService {
   }
 
   Future<User> updateUser({
-    required int id,
+    required String id,
     required String token,
     String? username,
     String? email,
@@ -93,20 +86,20 @@ class AuthService {
     );
 
     if (response.statusCode == 200) {
-      return User.fromJson(jsonDecode(response.body));
+      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       throw Exception(_handleError(response));
     }
   }
 
-  Future<User> getUserById(int id, String token) async {
+  Future<User> getUserById(String id, String token) async {
     final response = await http.get(
       Uri.parse('$_apiUrl/user/$id'),
       headers: {'Content-Type': 'application/json', 'Authorization': token},
     );
 
     if (response.statusCode == 200) {
-      return User.fromJson(jsonDecode(response.body));
+      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       throw Exception(_handleError(response));
     }
@@ -114,7 +107,7 @@ class AuthService {
 
   String _handleError(http.Response response) {
     try {
-      final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (decoded is Map<String, dynamic>) {
         return decoded['error'] ?? decoded['message'] ?? 'Erro desconhecido';

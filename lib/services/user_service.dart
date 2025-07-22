@@ -12,8 +12,10 @@ class UserService {
       headers: {'Content-Type': 'application/json'},
     );
 
+    print(utf8.decode(response.bodyBytes));
+
     if (response.statusCode == 200) {
-      return UserProfile.fromJson(jsonDecode(response.body));
+      return UserProfile.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       throw Exception(_handleError(response));
     }
@@ -21,7 +23,7 @@ class UserService {
 
   String _handleError(http.Response response) {
     try {
-      final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (decoded is Map<String, dynamic>) {
         return decoded['error'] ?? decoded['message'] ?? 'Erro desconhecido';

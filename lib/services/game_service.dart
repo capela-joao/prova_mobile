@@ -6,7 +6,6 @@ class GameService {
   static const String API_URL =
       'https://questboard-games-api-dfh4c8emeqgwgjbd.eastasia-01.azurewebsites.net';
 
-  // Busca jogos com base na pesquisa
   Future<List<dynamic>> searchGames(String query, String? token) async {
     if (token == null || token.isEmpty) {
       throw Exception('Usuário não autenticado. Token ausente.');
