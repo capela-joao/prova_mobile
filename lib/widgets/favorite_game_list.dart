@@ -147,6 +147,15 @@ class _FavoriteGameListState extends State<FavoriteGameList> {
     );
   }
 
+  void refreshFavorites() {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _gameDetails.clear();
+    });
+    _fetchFavoriteGames();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

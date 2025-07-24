@@ -30,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
+  final GlobalKey _postListKey = GlobalKey();
   bool _isGameSelected = false;
   bool _isModalOpen = false;
   String? _selectedGameName;
@@ -56,6 +57,14 @@ class _HomePageState extends State<HomePage> {
     _reviewController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _refreshPostsList() {
+    try {
+      (_postListKey.currentState as dynamic)?.refreshPosts();
+    } catch (e) {
+      print('Erro ao atualizar lista de posts: $e');
+    }
   }
 
   Future<void> _pickImage() async {
@@ -236,6 +245,8 @@ class _HomePageState extends State<HomePage> {
           _isSubmitting = false;
         });
       }
+
+      _refreshPostsList();
     } catch (e) {
       setState(() {
         _isSubmitting = false;
@@ -577,7 +588,11 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: PostList(token: widget.token, userId: widget.user.id),
+              child: PostList(
+                key: _postListKey,
+                token: widget.token,
+                userId: widget.user.id,
+              ),
             ),
           ),
         ],

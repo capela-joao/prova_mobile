@@ -28,6 +28,16 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
   Timer? _debounceTimer;
   bool _isSubmitting = false;
 
+  final GlobalKey _favoriteGameListKey = GlobalKey();
+
+  void _refreshFavoritesList() {
+    try {
+      (_favoriteGameListKey.currentState as dynamic)?.refreshFavorites();
+    } catch (e) {
+      print('Erro ao atualizar lista de favoritos: $e');
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -112,11 +122,19 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
         setState(() {
           _favoriteGamesIds.add(_selectedGameId!);
           _isSubmitting = false;
+          _isGameSelected = false;
+          _selectedGameName = null;
+          _selectedGameImage = null;
+          _selectedGameId = null;
+          _searchController.clear();
+          _games = [];
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Jogo adicionado aos favoritos')),
         );
+
+        _refreshFavoritesList();
       }
     } catch (e) {
       setState(() {
@@ -277,7 +295,7 @@ class _FavoriteGamesPageState extends State<FavoriteGamesPage> {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: FavoriteGameList(token: widget.token),
+        child: FavoriteGameList(key: _favoriteGameListKey, token: widget.token),
       ),
     );
   }

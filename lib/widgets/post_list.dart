@@ -311,6 +311,13 @@ class _PostListState extends State<PostList> {
     }
   }
 
+  void refreshPosts() {
+    setState(() {
+      _isLoading = true;
+    });
+    _fetchPosts();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
